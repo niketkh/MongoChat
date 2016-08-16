@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>MongoChat</title>
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	</head>
+	<body>
+		<div class="container">
+			<div class="row">
+				<div class="col-md-6 col-md-offset-3">
+					<h1 class="text-center">MongoChat <button class="btn btn-danger clearbtn">Clear</button></h1>
+					<div class="status"></div>
+					<div class="chat">
+						<input type="text" name="" class="username form-control" placeholder="What's Your Name?">
+						<br>
+						<div class="messages well"></div>
+						<textarea name="" class="form-control" placeholder="Enter Message" cols="30" rows="2"></textarea>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<script src="http://127.0.0.1:3456/socket.io/socket.io.js"></script>
+		<script>
+			(function(){
+				var element = function(selector){
+					return document.querySelector(selector);
+				},
+				// Get elements
+				status = element('.status');
+				messages = element('.messages');
+				textarea = element('.chat textarea');
+				username = element('.username');
+				clearBtn = element('.clearbtn');
+
+				StatusDefault = status.textContent;
+
+				setStatus = function(s){
+					status.textContent = s;
+
+					if(s !== StatusDefault){
+						var delay = setTimeout(function(){
+							setStatus(StatusDefault);
+						}, 3000);
+					}
+				};
+
+				var socket = io.connect('http://127.0.0.1:3456');
+				if( socket !== undefined){
+					// Output
+					socket.on('output', function(data){
+						console.log("Data");
+						console.log(data);
+						if(data.length){
+							for (var i = 0; i < data.length; i++) {
+								var message = document.createElement('div');
+								message.setAttribute('class', 'chat-message');
+								message.textContent = data[i].name + ':' + data[i].message;
+								messages.appendChild(message);
+								messages.insertBefore(message, messages.firstChild);
+							}
+						}
+					});
+
+					// Status
+					socket.on('status', function(data){
+
+						console.log(data);
+						setStatus((typeof data === 'object')? data.message: data);
+
+						if(data.clear === true){
+							textarea.value = '';
+						}
+					});
+
+					// Keydown Event
+					textarea.addEventListener('keydown', function(event){
+						var self = this;
+						name = username.value;
+
+						if(event.which === 13 && event.shiftKey == false){
+							socket.emit('input', {
+								name: name,
+								message: self.value
+							});
+							event.preventDefault();
+						}
+					});
+
+					// Click Event
+					clearBtn.addEventListener('click', function(event){
+						socket.emit('clear');
+					});
+
+					// Clear Message
+					socket.on('cleared', function(){
+						messages.textContent = '';
+					})
+				}
+				
+			})();
+		</script>
+	</body>
+</html>
